@@ -613,7 +613,7 @@ def motor_loop(arg1):
         print("loop time:",end_time - start_time)
 
 threading.Thread(target=motor_loop,args=(1,), daemon=True).start()
-#threading.Thread(target=sensor_read,args=(1,), daemon=True).start()
+threading.Thread(target=sensor_read,args=(1,), daemon=True).start()
 try:
     while True:
         evbuf = jsdev.read(8)
