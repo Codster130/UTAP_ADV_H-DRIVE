@@ -200,13 +200,6 @@ BL1_PWM = 2
 OR1_PWM = 0
 BR1_PWM = 1
 
-######## OUR MOTOR PLACEMENTS ########
-#       GREEN 1 :   PLACED ON RIGHT FOR FORWARD/BACKWARD
-#       GREEN 2 :   PLACED ON FRONT AS UP/DOWN
-#       BLUE 1  :   PLACED ON LEFT AS FORWARD/BACKWARD
-#       ORANGE 1:   PLACED ON LEFT AS UP/DOWN
-#       BROWN 1 :   PLACED ON RIGHT AS UP/DOWN
-
 #Use the numbering scheme for the Broadcom chip, not the RPi pin numbers
 GPIO.setmode(GPIO.BCM)
 
@@ -561,89 +554,68 @@ def motor_loop(arg1):
                     #x motor
                     x2 = 0
 
-                LeftStick = x+y
-                RightStick = x2+y2
-                LeftStickOpp = y-x
-                RightStickOpp = y2-x2
+                forwardMotor = x2+y
+                forwardMotorOpp = y-x2
+                slideMotor = x
 
-                if LeftStick > 0xFFFF:
-                    LeftStick = 0xFFFF
-                elif LeftStick < -0xFFFF:
-                    LeftStick = -0xFFFF
+                if forwardMotor > 0xFFFF:
+                    forwardMotor = 0xFFFF
+                elif forwardMotor < -0xFFFF:
+                    forwardMotor = -0xFFFF
 
-                if RightStick > 0xFFFF:
-                    RightStick = 0xFFFF
-                elif RightStick < -0xFFFF:
-                    RightStick = -0xFFFF
+                if forwardMotorOpp > 0xFFFF:
+                    forwardMotorOpp = 0xFFFF
+                elif forwardMotorOpp < -0xFFFF:
+                    forwardMotorOpp = -0xFFFF
 
-                if LeftStickOpp > 0xFFFF:
-                    LeftStickOpp = 0xFFFF
-                elif LeftStickOpp < -0xFFFF:
-                    LeftStickOpp = -0xFFFF
-
-                if RightStickOpp > 0xFFFF:
-                    RightStickOpp = 0xFFFF
-                elif RightStickOpp < -0xFFFF:
-                    RightStickOpp = 0xFFFF
-
-                #green2 motor left up/down
-                if y2 > 0:
-                    GPIO.output(GR2,GPIO.LOW)
-                else:
-                    GPIO.output(GR2,GPIO.HIGH)
-                pwm.channels[GR2_PWM].duty_cycle = abs(y2)
+                if slideMotor > 0xFFFF:
+                    slideMotor = 0xFFFF
+                elif slideMotor < -0xFFFF:
+                    slideMotor = -0xFFFF
 
                 #blue motor left side
-                if LeftStickOpp > 0:
+                if forwardMotorOpp > 0:
                     GPIO.output(BL1,GPIO.HIGH)
                 else:
                     GPIO.output(BL1,GPIO.LOW)
-                pwm.channels[BL1_PWM].duty_cycle = abs(LeftStickOpp)
+                pwm.channels[BL1_PWM].duty_cycle = abs(forwardMotorOpp)
 
                 #green1 motor right side
-                if LeftStick > 0:
+                if forwardMotor > 0:
                     GPIO.output(GR1,GPIO.HIGH)
                 else:
                     GPIO.output(GR1,GPIO.LOW)
-                pwm.channels[GR1_PWM].duty_cycle = abs(LeftStick)
+                pwm.channels[GR1_PWM].duty_cycle = abs(forwardMotor)
 
-                #orange motor left side up/down
-                if RightStickOpp > 0:
-                    GPIO.output(OR1,GPIO.HIGH)
-                else:
-                    GPIO.output(OR1,GPIO.LOW)
-                pwm.channels[OR1_PWM].duty_cycle = abs(RightStickOpp)
-
-                #brown motor right side up/down
-                if RightStick > 0:
+                #brown1 slide motor
+                if slideMotor > 0:
                     GPIO.output(BR1,GPIO.HIGH)
                 else:
                     GPIO.output(BR1,GPIO.LOW)
-                pwm.channels[BR1_PWM].duty_cycle = abs(RightStick)
+                pwm.channels[BR1_PWM].duty_cycle = abs(slideMotor)
 
-                # if intValrx > 0:
-                #     GPIO.output(BR1,GPIO.HIGH)
-                #     GPIO.output(OR1,GPIO.HIGH)
-                #     GPIO.output(GR2,GPIO.HIGH)
-                # else:
-                #     GPIO.output(BR1,GPIO.LOW)
-                #     GPIO.output(OR1,GPIO.LOW)
-                #     GPIO.output(GR2,GPIO.LOW)
-                # pwm.channels[BR1_PWM].duty_cycle = abs(intValrx)
-                # pwm.channels[BR1_PWM].duty_cycle = abs(intValrx)
-                # pwm.channels[BR1_PWM].duty_cycle = abs(intValrx)
+                if intValrx > 100:
+                    GPIO.output(OR1,GPIO.HIGH)#direction pin
+                    GPIO.output(GR2,GPIO.HIGH)#direction pin
+                    pwm.channels[OR1_PWM].duty_cycle = abs(intValrx)
+                    pwm.channels[GR2_PWM].duty_cycle = abs(intValrx)
+                elif intValry > 100:
+                    GPIO.output(OR1,GPIO.LOW)#direction pin
+                    GPIO.output(GR2,GPIO.LOW)#direction pin
+                    pwm.channels[OR1_PWM].duty_cycle = abs(intValry)
+                    pwm.channels[GR2_PWM].duty_cycle = abs(intValry)
+                else:
+                    pwm.channels[OR1_PWM].duty_cycle = 0
+                    pwm.channels[GR2_PWM].duty_cycle = 0
 
         end_time = time.time()
         print (direction)
         print("loop time:",end_time - start_time)
 
-def control_loop(arg1):
-    global evbuf
+threading.Thread(target=motor_loop,args=(1,), daemon=True).start()
+#threading.Thread(target=sensor_read,args=(1,), daemon=True).start()
+try:
     while True:
         evbuf = jsdev.read(8)
-
-threading.Thread(target=motor_loop,args=(1,), daemon=True).start()
-threading.Thread(target=sensor_read,args=(1,), daemon=True).start()
-#threading.Thread(target=control_loop,args=(1,), daemon=True).start()
-while True:
-    evbuf = jsdev.read(8)
+except (KeyboardInterrupt, SystemExit):
+    GPIO.cleanup()
